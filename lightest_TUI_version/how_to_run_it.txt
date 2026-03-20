@@ -1,0 +1,86 @@
+ThermoGuard  User Manual   -terminal varsion-
+1. Overview
+ThermoGuard is a system monitoring tool composed of two parts:
+Backend Daemon (thermo.py): Collects hardware telemetry (CPU, Memory, Temperatures, Disk, Battery, GPU) and exposes it via a Unix socket.
+Frontend TUI (thermoui.py): A terminal-based user interface that connects to the daemon to display real-time stats.
+⚠️ Platform Requirement: This software is designed for Linux/Unix systems. It relies on Unix sockets and system files (/proc, /sys) that are not natively available on Windows.
+2. Prerequisites
+Python Version:
+Python 3.11 or higher is required.
+Reason: The backend uses import tomllib, which was added to the standard library in Python 3.11.
+Operating System
+Linux / macOS / WSL (Windows Subsystem for Linux).
+Native Windows is not supported due to Unix socket limitations.
+3. Installation
+Step 1: Install Dependencies
+While the core script works with standard libraries, installing optional packages enables full functionality (GPU support, faster I/O, better stats).
+bash
+1
+psutil: Robust CPU/Memory stats.
+pynvml: NVIDIA GPU monitoring.
+aiofiles: Asynchronous file reading.
+msgpack: Efficient binary data serialization.
+Step 2: Verify Files
+Ensure both thermo.py and thermoui.py are in the same directory or accessible in your Python path.
+4. Configuration (Optional)
+ThermoGuard looks for configuration in the following locations (in order):
+/etc/thermoguard/config.toml
+~/.config/thermoguard/config.toml
+./thermoguard.toml (current directory)
+Example config.toml:
+toml
+123456
+5. Running the System
+The system works in a Client-Server model. You must start the Backend first.
+Step 1: Start the Backend Daemon
+This script collects data and creates the socket connection.
+bash
+12345
+Backend Arguments:
+--debug: Enable verbose logging in the terminal.
+--socket <path>: Custom Unix socket path (default: /tmp/thermoguard.sock).
+--token: Enable authentication (requires client to provide token).
+--binary: Use MessagePack instead of JSON (requires msgpack installed).
+Note on Permissions:
+If run without sudo, the script will print a warning:
+Warning: Not running as root â some sensors may be inaccessible.
+This is because reading /sys/class/hwmon often requires root privileges. The script will still run, but temperature data might be missing.
+Step 2: Start the Frontend TUI
+Open a new terminal window and run the interface.
+bash
+1
+Frontend Arguments:
+--socket <path>: Must match the backend socket path.
+--token <string>: Provide auth token if backend was started with --token. (Otherwise, it auto-reads from ~/.local/share/thermoguard/thermoguard.token).
+⚠️ Important: The frontend (thermoui.py) does not support the --debug flag. Using it will cause an error.
+6. Using the Interface
+Once thermoui.py is running:
+View Data: Real-time CPU, Memory, Temperatures, Disk I/O, and Battery stats.
+Refresh: Press r to force a data refresh.
+Quit: Press q or Esc to exit the TUI.
+Stopping the Backend:
+Go to the terminal running thermo.py and press Ctrl+C.
+7. Troubleshooting
+Issue
+Solution
+ModuleNotFoundError: No module named 'tomllib'
+You are using Python < 3.11. Upgrade Python.
+unrecognized arguments: --debug (in UI)
+Remove --debug from the thermoui.py command. It is not supported.
+Connection refused
+Ensure thermo.py is running before starting thermoui.py.
+Temperature: No data
+Run thermo.py with sudo to access hardware sensors.
+Permission denied on socket
+Ensure both scripts are run by the same user, or check socket permissions (chmod 0o600 is set by default).
+Error: Authentication failed
+If backend uses --token, ensure the client has the correct token file or passes --token.
+8. Security & Authentication
+Enabling Token Auth
+Start Backend: sudo python3 thermo.py --token
+This generates a token at ~/.local/share/thermoguard/thermoguard.token.
+Start Frontend: python3 thermoui.py
+The frontend automatically reads the token from the default path.
+Or manually specify: python3 thermoui.py --token "your_token_string"
+Socket Security
+The backend sets the socket permissions to 0o600 (read/write only by owner) to prevent other users from accessing your system telemetry.
